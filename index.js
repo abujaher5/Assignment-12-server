@@ -84,6 +84,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/doctors/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await doctorCollection.findOne(query);
+      res.send(result);
+    });
+
     app.post("/doctors", async (req, res) => {
       const item = req.body;
       const result = await doctorCollection.insertOne(item);
