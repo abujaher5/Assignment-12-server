@@ -96,6 +96,24 @@ async function run() {
       const result = await doctorCollection.insertOne(item);
       res.send(result);
     });
+
+    app.patch("/doctors/:id", async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      updatedDoc = {
+        $set: {
+          name: item.name,
+          specialize: item.specialize,
+          location: item.location,
+          availableOn: item.availableOn,
+          availableTime: item.availableTime,
+          image: item.image,
+        },
+      };
+      const result = await doctorCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
     app.delete("/doctors/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
