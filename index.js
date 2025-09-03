@@ -40,6 +40,7 @@ async function run() {
     const userCollection = client.db("famousDB").collection("users");
     const testCollection = client.db("famousDB").collection("test");
     const doctorCollection = client.db("famousDB").collection("doctors");
+    const bannerCollection = client.db("famousDB").collection("banners");
 
     // user related api
     app.get("/users", async (req, res) => {
@@ -118,6 +119,46 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await doctorCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // banners api
+    app.get("/banners", async (req, res) => {
+      const result = await bannerCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/banners/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bannerCollection.findOne(query);
+      res.send(result);
+    });
+    app.post("/banners", async (req, res) => {
+      const item = req.body;
+      const result = await bannerCollection.insertOne(item);
+      res.send(result);
+    });
+    app.patch("/banners/:id", async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      updatedDoc = {
+        $set: {
+          bHeading: item.bHeading,
+          bDetails: item.bDetails,
+          buttonName: item.buttonName,
+          image: item.image,
+        },
+      };
+      const result = await bannerCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    app.delete("/banners/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await bannerCollection.deleteOne(query);
       res.send(result);
     });
 
