@@ -41,6 +41,7 @@ async function run() {
     const testCollection = client.db("famousDB").collection("test");
     const doctorCollection = client.db("famousDB").collection("doctors");
     const bannerCollection = client.db("famousDB").collection("banners");
+    const listingCollection = client.db("famousDB").collection("listings");
 
     // user related api
     app.get("/users", async (req, res) => {
@@ -76,6 +77,27 @@ async function run() {
     app.post("/tests", async (req, res) => {
       const item = req.body;
       const result = await testCollection.insertOne(item);
+      res.send(result);
+    });
+
+    // myListing api
+
+    app.get("/myListings", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await listingCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post("/myListings", async (req, res) => {
+      const item = req.body;
+      const result = await listingCollection.insertOne(item);
+      res.send(result);
+    });
+    app.delete("/myListings/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await listingCollection.deleteOne(query);
       res.send(result);
     });
 
