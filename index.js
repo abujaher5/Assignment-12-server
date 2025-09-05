@@ -42,6 +42,7 @@ async function run() {
     const doctorCollection = client.db("famousDB").collection("doctors");
     const bannerCollection = client.db("famousDB").collection("banners");
     const listingCollection = client.db("famousDB").collection("listings");
+    const reviewCollection = client.db("famousDB").collection("reviews");
 
     // user related api
     app.get("/users", async (req, res) => {
@@ -181,6 +182,18 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await bannerCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // review related api
+    app.get("/reviews", async (req, res) => {
+      const result = await reviewCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/reviews", async (req, res) => {
+      const item = req.body;
+      const result = await reviewCollection.insertOne(item);
       res.send(result);
     });
 
