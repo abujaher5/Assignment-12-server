@@ -43,6 +43,9 @@ async function run() {
     const bannerCollection = client.db("famousDB").collection("banners");
     const listingCollection = client.db("famousDB").collection("listings");
     const reviewCollection = client.db("famousDB").collection("reviews");
+    const technologyCollection = client
+      .db("famousDB")
+      .collection("technologies");
 
     // user related api
     app.get("/users", async (req, res) => {
@@ -222,6 +225,50 @@ async function run() {
       const result = await reviewCollection.insertOne(item);
       res.send(result);
     });
+
+    // technology related api
+    app.get("/technologies", async (req, res) => {
+      const result = await technologyCollection.find().toArray();
+      res.send(result);
+    });
+    app.get("/technologies/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await technologyCollection.findOne(query);
+      res.send(result);
+    });
+    app.post("/technologies", async (req, res) => {
+      const item = req.body;
+      const result = await technologyCollection.insertOne(item);
+      res.send(result);
+    });
+
+    app.patch("/technologies/:id", async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      updatedDoc = {
+        $set: {
+          name: item.name,
+          technologyDetails: item.technologyDetails,
+          image: item.image,
+        },
+      };
+      const result = await technologyCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    app.delete(
+      "/technologies/:id",
+
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await technologyCollection.deleteOne(query);
+
+        res.send(result);
+      }
+    );
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
