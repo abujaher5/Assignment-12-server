@@ -57,15 +57,23 @@ async function run() {
     });
 
     // middlewares
+
+    // verify token middleware
+
     const verifyToken = (req, res, next) => {
       console.log("Inside verify token", req.headers.authorization);
       if (!req.headers.authorization) {
         return res.status(401).send({
-          message: "unauthorized access",
+          message: "unauthorized access for token",
         });
       }
 
       const token = req.headers.authorization.split(" ")[1];
+      console.log("Inside verify token", token);
+
+      // if (!token) {
+      //   return res.status(401).send({ message: "unauthorized access" });
+      // }
 
       jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
         if (err) {
@@ -81,12 +89,16 @@ async function run() {
     // verify admin middleware
 
     const verifyAdmin = async (req, res, next) => {
+      // const user = req.user;
+
       const email = req.decoded.email;
       const query = {
         email: email,
       };
       const user = await userCollection.findOne(query);
+      console.log(user);
       const isAdmin = user?.role === "Admin";
+
       if (!isAdmin) {
         return res.status(403).send({
           message: "forbidden access",
@@ -101,23 +113,35 @@ async function run() {
       res.send(result);
     });
 
+    // app.get("/users/:email", async (req, res) => {
+    //   const email = req.params.email;
+    //   const result = await userCollection.findOne({ email });
+    //   res.send(result);
+    // });
+
     // for verify admin
 
-    app.get("/users/admin/:email", verifyToken, async (req, res) => {
-      const email = req.params.email;
-      if (email !== req.decoded.email) {
-        return res.status(403).send({
-          message: "forbidden Access",
-        });
+    app.get(
+      "/users/admin/:email",
+      verifyToken,
+      verifyAdmin,
+
+      async (req, res) => {
+        const email = req.params.email;
+        if (email !== req.decoded.email) {
+          return res.status(403).send({
+            message: "forbidden Access",
+          });
+        }
+        const query = { email: email };
+        const user = await userCollection.findOne(query);
+        let admin = false;
+        if (user) {
+          admin = user?.role === "Admin";
+        }
+        res.send({ admin });
       }
-      const query = { email: email };
-      const user = await userCollection.findOne(query);
-      let admin = false;
-      if (user) {
-        admin = user?.role === "Admin";
-      }
-      res.send({ admin });
-    });
+    );
 
     app.post("/users", async (req, res) => {
       const user = req.body;
