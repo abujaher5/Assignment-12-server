@@ -12,6 +12,7 @@ const corsOptions = {
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:5175",
+    "https://famous-diagnostic-center.web.app",
   ],
   credentials: "true",
   optionSuccessStatus: 200,
@@ -140,7 +141,7 @@ async function run() {
           admin = user?.role === "Admin";
         }
         res.send({ admin });
-      }
+      },
     );
 
     app.post("/users", async (req, res) => {
@@ -357,7 +358,7 @@ async function run() {
         const result = await technologyCollection.deleteOne(query);
 
         res.send(result);
-      }
+      },
     );
 
     // Send a ping to confirm a successful connection
