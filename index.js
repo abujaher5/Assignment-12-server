@@ -44,6 +44,7 @@ async function run() {
     const bannerCollection = client.db("famousDB").collection("banners");
     const listingCollection = client.db("famousDB").collection("listings");
     const reviewCollection = client.db("famousDB").collection("reviews");
+    const appointmentCollection = client.db("famousDB").collection("appointments");
     const technologyCollection = client
       .db("famousDB")
       .collection("technologies");
@@ -262,6 +263,46 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await doctorCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // appointment related api
+    app.get("/appointments", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await appointmentCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/allAppointments", async (req, res) => {
+      const result = await appointmentCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/appointments", async (req, res) => {
+      const item = req.body;
+      item.status = "pending";
+      item.createdAt = new Date();
+      const result = await appointmentCollection.insertOne(item);
+      res.send(result);
+    });
+
+    app.patch("/appointments/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: req.body.status,
+        },
+      };
+      const result = await appointmentCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    app.delete("/appointments/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await appointmentCollection.deleteOne(query);
       res.send(result);
     });
 
