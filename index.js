@@ -109,6 +109,21 @@ async function run() {
       next();
     };
 
+    // verify doctor middleware
+
+    const verifyDoctor = async (req, res, next) => {
+      const email = req.decoded.email;
+      const user = await userCollection.findOne({ email: email });
+      const isDoctor = user?.role === "Doctor" || user?.role === "Admin";
+
+      if (!isDoctor) {
+        return res.status(403).send({
+          message: "forbidden access",
+        });
+      }
+      next();
+    };
+
     // user related api
     app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
@@ -145,8 +160,55 @@ async function run() {
       },
     );
 
+    // get the role of the currently logged in user
+    app.get("/users/role/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({
+          message: "forbidden Access",
+        });
+      }
+      const user = await userCollection.findOne({ email: email });
+      res.send({ role: user?.role || "User" });
+    });
+
+    // admin can change a user's role (User / Doctor / Admin)
+    app.patch(
+      "/users/role/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const { role } = req.body;
+        const allowedRoles = ["User", "Doctor", "Admin"];
+
+        if (!allowedRoles.includes(role)) {
+          return res.status(400).send({ message: "Invalid role" });
+        }
+
+        const user = await userCollection.findOne({ _id: new ObjectId(id) });
+        if (!user) {
+          return res.status(404).send({ message: "User not found" });
+        }
+        if (user.email === req.decoded.email) {
+          return res.status(400).send({
+            message: "You cannot change your own role",
+          });
+        }
+
+        const result = await userCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { role } },
+        );
+        res.send(result);
+      },
+    );
+
     app.post("/users", async (req, res) => {
       const user = req.body;
+      if (!user.role) {
+        user.role = "User";
+      }
       const query = { email: user.email };
       const existingUser = await userCollection.findOne(query);
       if (existingUser) {
@@ -229,6 +291,13 @@ async function run() {
       res.send(result);
     });
 
+    // get a doctor profile by the linked account email
+    app.get("/doctors/email/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await doctorCollection.findOne({ email: email });
+      res.send(result);
+    });
+
     app.get("/doctors/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -253,6 +322,8 @@ async function run() {
           location: item.location,
           availableOn: item.availableOn,
           availableTime: item.availableTime,
+          about: item.about,
+          email: item.email,
           image: item.image,
         },
       };
@@ -274,6 +345,21 @@ async function run() {
       res.send(result);
     });
 
+    // appointments assigned to the logged in doctor
+    app.get(
+      "/appointments/doctor",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const email = req.query.email;
+        const result = await appointmentCollection
+          .find({ doctorEmail: email })
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.send(result);
+      },
+    );
+
     app.get("/allAppointments", async (req, res) => {
       const result = await appointmentCollection.find().toArray();
       res.send(result);
@@ -282,6 +368,7 @@ async function run() {
     app.post("/appointments", async (req, res) => {
       const item = req.body;
       item.status = "pending";
+      item.paymentStatus = item.paymentStatus || "Unpaid";
       item.createdAt = new Date();
       const result = await appointmentCollection.insertOne(item);
       res.send(result);
@@ -290,12 +377,23 @@ async function run() {
     app.patch("/appointments/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          status: req.body.status,
-        },
-      };
-      const result = await appointmentCollection.updateOne(filter, updatedDoc);
+      const { status, recommendation, reportStatus, paymentStatus } = req.body;
+
+      const fieldsToUpdate = {};
+      if (status !== undefined) fieldsToUpdate.status = status;
+      if (recommendation !== undefined)
+        fieldsToUpdate.recommendation = recommendation;
+      if (reportStatus !== undefined) fieldsToUpdate.reportStatus = reportStatus;
+      if (paymentStatus !== undefined)
+        fieldsToUpdate.paymentStatus = paymentStatus;
+
+      if (Object.keys(fieldsToUpdate).length === 0) {
+        return res.send({ matchedCount: 0, modifiedCount: 0 });
+      }
+
+      const result = await appointmentCollection.updateOne(filter, {
+        $set: fieldsToUpdate,
+      });
       res.send(result);
     });
 
