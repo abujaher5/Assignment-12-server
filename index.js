@@ -196,9 +196,118 @@ async function run() {
           });
         }
 
+        const updateFields = { role };
+        // keep the doctor request in sync with the role
+        if (role === "Doctor") {
+          updateFields["doctorRequest.status"] = "approved";
+          updateFields["doctorRequest.reviewedAt"] = new Date();
+        } else if (role === "User") {
+          updateFields["doctorRequest.status"] = "rejected";
+          updateFields["doctorRequest.reviewedAt"] = new Date();
+        }
+
         const result = await userCollection.updateOne(
           { _id: new ObjectId(id) },
-          { $set: { role } },
+          { $set: updateFields },
+        );
+        res.send(result);
+      },
+    );
+
+    // a user requests to become a doctor.
+    // allowed only when an admin has added a doctor directory entry with the same email
+    app.post("/users/doctorRequest", verifyToken, async (req, res) => {
+      const email = req.decoded.email;
+      const user = await userCollection.findOne({ email: email });
+
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+      if (user.role === "Doctor" || user.role === "Admin") {
+        return res
+          .status(400)
+          .send({ message: "You are already a doctor or admin" });
+      }
+
+      const doctor = await doctorCollection.findOne({ email: email });
+      if (!doctor) {
+        return res.status(400).send({
+          message:
+            "No doctor profile found for your email yet. Please contact the admin.",
+        });
+      }
+
+      const result = await userCollection.updateOne(
+        { email: email },
+        {
+          $set: {
+            doctorRequest: {
+              status: "pending",
+              name: user.name,
+              email: email,
+              requestedAt: new Date(),
+            },
+          },
+        },
+      );
+      res.send(result);
+    });
+
+    // get the doctor request of the currently logged in user
+    app.get("/users/doctorRequest/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden Access" });
+      }
+      const user = await userCollection.findOne({ email: email });
+      res.send({
+        role: user?.role || "User",
+        doctorRequest: user?.doctorRequest || null,
+      });
+    });
+
+    // admin: list all pending doctor requests
+    app.get(
+      "/users/doctorRequests/all",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const result = await userCollection
+          .find({ "doctorRequest.status": "pending" })
+          .toArray();
+        res.send(result);
+      },
+    );
+
+    // admin: approve or reject a doctor request
+    app.patch(
+      "/users/doctorRequest/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const { status } = req.body;
+
+        if (!["approved", "rejected"].includes(status)) {
+          return res.status(400).send({ message: "Invalid status" });
+        }
+
+        const user = await userCollection.findOne({ _id: new ObjectId(id) });
+        if (!user) {
+          return res.status(404).send({ message: "User not found" });
+        }
+
+        const updateFields = {
+          "doctorRequest.status": status,
+          "doctorRequest.reviewedAt": new Date(),
+        };
+        if (status === "approved") {
+          updateFields.role = "Doctor";
+        }
+
+        const result = await userCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updateFields },
         );
         res.send(result);
       },
