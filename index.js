@@ -160,6 +160,45 @@ async function run() {
       },
     );
 
+    // get the profile of the currently logged in user
+    app.get("/users/profile/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden Access" });
+      }
+      const user = await userCollection.findOne({ email: email });
+      if (!user) {
+        return res.status(404).send({ message: "User not found" });
+      }
+      res.send(user);
+    });
+
+    // update the profile of the currently logged in user
+    app.patch("/users/profile/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden Access" });
+      }
+
+      const { name, bloodGroup, district, image, phone } = req.body;
+      const fieldsToUpdate = {};
+      if (name !== undefined) fieldsToUpdate.name = name;
+      if (bloodGroup !== undefined) fieldsToUpdate.bloodGroup = bloodGroup;
+      if (district !== undefined) fieldsToUpdate.district = district;
+      if (image !== undefined) fieldsToUpdate.image = image;
+      if (phone !== undefined) fieldsToUpdate.phone = phone;
+
+      if (Object.keys(fieldsToUpdate).length === 0) {
+        return res.send({ matchedCount: 0, modifiedCount: 0 });
+      }
+
+      const result = await userCollection.updateOne(
+        { email: email },
+        { $set: fieldsToUpdate },
+      );
+      res.send(result);
+    });
+
     // get the role of the currently logged in user
     app.get("/users/role/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
